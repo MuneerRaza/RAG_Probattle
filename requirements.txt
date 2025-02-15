@@ -1,0 +1,15 @@
+tqdm
+unstructured
+unstructured[pdf]
+streamlit
+transformers
+torch
+langchain
+langchain-ollama
+langchain-text-splitters
+langchain-community 
+langchain-core
+langchain-huggingface
+langchain-qdrant
+langchain-unstructured
+langgraph
