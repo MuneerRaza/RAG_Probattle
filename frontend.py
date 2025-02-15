@@ -1,40 +1,42 @@
 import streamlit as st
 import requests
 
-API_URL = "http://127.0.0.1:8000/generate"
+# FastAPI endpoint
+API_URL = "http://127.0.0.1:8000/generate"  # Update if running on a different host/port
 
-st.title("RAG-based Question Answering")
-st.write("Enter your query below:")
+# Streamlit UI
+st.set_page_config(page_title="AI Chatbot", layout="wide")
+st.title("📚 AI-Powered RAG Chatbot")
 
-query = st.text_input("Question:")
+# Chat history
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
 
-# Check if FastAPI server is running before making requests
-@st.cache_data
-def is_api_running():
-    try:
-        response = requests.get("http://127.0.0.1:8000/docs", timeout=3)
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
-        return False
+# Display chat messages
+for message in st.session_state["messages"]:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-if not is_api_running():
-    st.error("⚠️ API server is not running. Please start FastAPI and try again.")
-else:
-    if st.button("Get Answer"):
-        if query:
-            with st.spinner("Generating answer..."):
-                with requests.post(API_URL, json={"question": query}, stream=True) as response:
-                    if response.status_code == 200:
-                        st.success("Answer:")
-                        answer_placeholder = st.empty()
-                        answer_text = ""
-
-                        # Stream response and update UI dynamically
-                        for chunk in response.iter_content(chunk_size=1024):
-                            if chunk:
-                                answer_text += chunk.decode("utf-8")
-                                answer_placeholder.write(answer_text)  # Update in real-time
-                    else:
-                        st.error("Error fetching answer. Please check API.")
-        else:
-            st.warning("Please enter a question.")
+# User input
+query = st.chat_input("Ask a question...")
+if query:
+    # Add user message
+    st.session_state["messages"].append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
+    
+    # Send request to FastAPI
+    response = requests.post(API_URL, json={"question": query}, stream=True)
+    
+    # Read streaming response
+    bot_reply = ""
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                text_chunk = chunk.decode("utf-8")
+                bot_reply += text_chunk
+                message_placeholder.markdown(bot_reply)
+    
+    # Save bot response
+    st.session_state["messages"].append({"role": "assistant", "content": bot_reply})
