@@ -12,3 +12,10 @@ For mac, you can install tesseract-ocr by running the following command:
 ```bash
 brew install tesseract
 ```
+
+# Poppler
+Download the poppler from github as pre-requiste for pdf2image
+
+download the required libraries by running the following command:
+```pip install -r requirements.txt```
+

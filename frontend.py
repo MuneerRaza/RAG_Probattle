@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import json
 
 # FastAPI endpoint
 API_URL = "http://127.0.0.1:8000/generate"  # Update if running on a different host/port
@@ -11,6 +12,9 @@ st.title("📚 AI-Powered RAG Chatbot")
 # Chat history
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
+
+if "sources" not in st.session_state:
+    st.session_state["sources"] = []
 
 # Display chat messages
 for message in st.session_state["messages"]:
@@ -30,6 +34,7 @@ if query:
     
     # Read streaming response
     bot_reply = ""
+    sources = []
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         for chunk in response.iter_content(chunk_size=1024):
@@ -38,5 +43,20 @@ if query:
                 bot_reply += text_chunk
                 message_placeholder.markdown(bot_reply)
     
-    # Save bot response
+    # Extract sources from response headers or include it in response JSON
+    try:
+        sources = json.loads(response.headers.get("X-Sources", "[]"))
+    except json.JSONDecodeError:
+        sources = []
+
+    # Save bot response and sources
     st.session_state["messages"].append({"role": "assistant", "content": bot_reply})
+    st.session_state["sources"] = sources
+
+# Dropdown for Sources
+if st.session_state["sources"]:
+    with st.expander("📖 Sources"):
+        for i, source in enumerate(st.session_state["sources"], start=1):
+            st.markdown(f"**Source {i}:**")
+            st.text(f"📄 {source['source']} (Page {source['page']})")
+            st.text_area("Excerpt:", source['page_content'], height=100, key=f"source_{i}")

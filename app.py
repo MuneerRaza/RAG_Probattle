@@ -11,6 +11,11 @@ from langchain_community.retrievers import BM25Retriever
 from langchain.schema import Document
 from langchain import hub
 from fastapi.responses import StreamingResponse
+from langchain_community.document_loaders import PyPDFLoader
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import List
+
 
 if not os.environ.get("GROQ_API_KEY"):
   os.environ["GROQ_API_KEY"] = "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"
@@ -22,7 +27,7 @@ embeddings = HuggingFaceEmbeddings(model_name="nomic-ai/nomic-embed-text-v1.5", 
 # Paths
 path = r"C:\Users\Muneer\Downloads\pa-2024-25.pdf"
 json_path = r"C:\Users\Muneer\Downloads\courses_info.json"
-vectorstore_path = "vectorstore"
+vectorstore_path = "new_vectorstore"
 
 def convert_json_to_documents(json_path):
     """Loads JSON and converts each object into a LangChain Document."""
@@ -46,13 +51,17 @@ def convert_json_to_documents(json_path):
 
 def load_and_store_embeddings():
     """Loads a PDF, splits text, and stores embeddings in FAISS."""
-    loader_local = UnstructuredLoader(
-       file_path=path,
-       strategy="hi_res",
-    )
+    # loader_local = UnstructuredLoader(
+    #    file_path=path,
+    #    strategy="hi_res",
+    # )
+    # docs = []
+    # for doc in loader_local.lazy_load():
+    #     docs.append(doc)
+    loader = PyPDFLoader(path)
     docs = []
-    for doc in loader_local.lazy_load():
-        docs.append(doc)
+    for page in loader.lazy_load():
+        docs.append(page)
 
     json_docs = convert_json_to_documents(json_path)
 
@@ -121,13 +130,18 @@ app = FastAPI()
 class Query(BaseModel):
     question: str
 
+class ResponseModel(BaseModel):
+    answer: str
+    sources: List[str] = []
+
+from fastapi.responses import JSONResponse
 
 @app.post("/generate")
 async def generate(query: Query):
-    question = query.question  # Correctly access the question
-    question += "\n If the question above is irrelevant to provided context, then don't answer it."
+    question = query.question
+    question += "\n Try to answer from the context according to question but If the question above is very irrelevant to provided context, then don't answer it."
     
-    retrieved_docs = vector_store.similarity_search(question)
+    retrieved_docs = vector_store.similarity_search(question, top_k=5)
     retriever = BM25Retriever.from_documents(all_splits)
     bm_docs = retriever.invoke(question)
     retrieved_docs.extend(bm_docs)
@@ -135,12 +149,18 @@ async def generate(query: Query):
     retrieved_docs = re_rank(retrieved_docs, question)
     docs_content = "\n\n".join(doc.page_content for doc in retrieved_docs)
 
+    # Collect source metadata
+    sources = [
+        {"source": doc.metadata.get("source", "Unknown"), "page": doc.metadata.get("page", "N/A"), "page_content": doc.page_content}
+        for doc in retrieved_docs
+    ]
+
     messages = prompt.invoke({"question": question, "context": docs_content})
 
     async def generate_stream():
         for chunk in llm.stream(messages):
-            yield chunk.content + " "  # Send data chunk by chunk
+            yield chunk.content
 
-    return StreamingResponse(generate_stream(), media_type="text/plain")
-
-
+    response = StreamingResponse(generate_stream(), media_type="text/plain")
+    response.headers["X-Sources"] = json.dumps(sources)  # Send sources in headers
+    return response
