@@ -4,6 +4,9 @@ unstructured[pdf]
 streamlit
 transformers
 torch
+qdrant-client
+langchain[groq]
+einops
 langchain
 langchain-ollama
 langchain-text-splitters
@@ -13,3 +16,10 @@ langchain-huggingface
 langchain-qdrant
 langchain-unstructured
 langgraph
+pypdf
+uvicorn
+fastapi
+rank_bm25
+faiss-cpu
+pdf2image
+pytesseract
