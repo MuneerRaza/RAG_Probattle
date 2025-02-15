@@ -123,10 +123,11 @@ class Query(BaseModel):
 
 
 @app.post("/generate")
-async def generate(question: str):
+async def generate(query: Query):
+    question = query.question  # Correctly access the question
     question += "\n If the question above is irrelevant to provided context, then don't answer it."
+    
     retrieved_docs = vector_store.similarity_search(question)
-
     retriever = BM25Retriever.from_documents(all_splits)
     bm_docs = retriever.invoke(question)
     retrieved_docs.extend(bm_docs)
@@ -141,4 +142,5 @@ async def generate(question: str):
             yield chunk.content + " "  # Send data chunk by chunk
 
     return StreamingResponse(generate_stream(), media_type="text/plain")
+
 
