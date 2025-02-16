@@ -18,7 +18,7 @@ from typing import List
 
 
 if not os.environ.get("GROQ_API_KEY"):
-  os.environ["GROQ_API_KEY"] = "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"
+  os.environ["GROQ_API_KEY"] = ""
 
 # Initialize models
 llm = init_chat_model("llama3-8b-8192", model_provider="groq")
